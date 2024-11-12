@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Ease</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        :root {
+            --background: linear-gradient(to right, #aeeeee, #87cefa, #4682b4, #4169e1);
+            --text-color-light: #FFFFFF;
+            --text-color-dark: #000000;
+            --accent-color: #0302239d;
+            --secondary-color: #0a0a0a;
+            
+        }
+        body {
+            min-height: 100vh;
+            padding: 0;
+            background: var(--background);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 16pt;
+            color: var(--text-color-dark);
+        }
+        h1 {
+            margin-bottom: 20px;
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--text-color-light);
+        }
+        .wrapper {
+            width: 700px;
+            max-width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+        }
+        .input-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        input[type="text"], input[type="date"], input[type="time"] {
+            flex: 1;
+            padding: 12px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid var(--secondary-color);
+            border-radius: 1000px;
+            font: inherit;
+            color: var(--text-color-dark);
+        }
+        button {
+            background-color: var(--accent-color);
+            padding: 10px 20px;
+            border: none;
+            border-radius: 1000px;
+            font: inherit;
+            font-weight: 600;
+            color: var(--background);
+            cursor: pointer;
+        }
+        .todo {
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: var(--primary-color);
+            border-radius: 15px;
+            width: 100%;
+            max-width: 700px; 
+        }
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .todo-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 5px;
+        }
+        #notification-bar {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: var(--accent-color);
+            color: var(--background);
+            border-radius: 5px;
+            display: none;
+            transition: opacity 0.5s ease;
+        }
+    </style>
+</head>
+<body>
+    <h1>Your Tasks</h1>
+    <div class="wrapper">
+        <!-- Task Input -->
+        <div class="input-group">
+            <input id="task-input" type="text" placeholder="Add a task" autocomplete="off">
+            <button id="add-task-button">Add Task</button>
+        </div>
+
+        <!-- Additional Info Input (Initially hidden) -->
+        <div class="input-group" id="additional-info-group" style="display: none;">
+            <input id="additional-info-input" type="text" placeholder="Additional Info" autocomplete="off">
+            <button id="add-additional-info-button">Add Info</button>
+            <input id="date-input" type="date">
+            <button id="add-date-button">Add Date</button>
+            <input id="time-input" type="time">
+            <button id="add-time-button">Add Time</button>
+        </div>
+
+        <ul id="todo-list"></ul>
+    </div>
+
+    <div id="notification-bar">Scheduled task added!</div>
+
+    <script>
+        const taskInput = document.getElementById('task-input');
+        const additionalInfoInput = document.getElementById('additional-info-input');
+        const dateInput = document.getElementById('date-input');
+        const timeInput = document.getElementById('time-input');
+        const additionalInfoGroup = document.getElementById('additional-info-group');
+        const todoList = document.getElementById('todo-list');
+        const notificationBar = document.getElementById('notification-bar');
+
+        let todos = [];
+        let currentTaskIndex = null;
+
+        document.getElementById('add-task-button').addEventListener('click', addTask);
+        document.getElementById('add-additional-info-button').addEventListener('click', addAdditionalInfo);
+        document.getElementById('add-date-button').addEventListener('click', addDate);
+        document.getElementById('add-time-button').addEventListener('click', addTime);
+
+        // Check for overdue tasks every minute
+        setInterval(checkOverdueTasks, 60000);
+
+        function addTask() {
+            const taskText = taskInput.value.trim();
+            if (taskText) {
+                todos.push({ text: taskText, info: [], dates: [], times: [] });
+                updateTodoList();
+                taskInput.value = '';
+                showNotification("Task added!");
+            }
+        }
+
+        function addAdditionalInfo() {
+            if (currentTaskIndex !== null) {
+                const additionalInfoText = additionalInfoInput.value.trim();
+                if (additionalInfoText) {
+                    todos[currentTaskIndex].info.push(additionalInfoText);
+                    todos[currentTaskIndex].dates.push(dateInput.value || ''); // Use the date input
+                    todos[currentTaskIndex].times.push(timeInput.value || ''); // Use the time input
+                    updateTodoList();
+                    additionalInfoInput.value = '';
+                    dateInput.value = '';
+                    timeInput.value = '';
+                    additionalInfoGroup.style.display = 'none'; // Hide after adding
+                }
+            }
+        }
+
+        function addDate() {
+            if (currentTaskIndex !== null) {
+                const dueDate = dateInput.value;
+                if (dueDate) {
+                    todos[currentTaskIndex].dates[todos[currentTaskIndex].info.length - 1] = dueDate;
+                    updateTodoList();
+                }
+            }
+        }
+
+        function addTime() {
+            if (currentTaskIndex !== null) {
+                const dueTime = timeInput.value;
+                if (dueTime) {
+                    todos[currentTaskIndex].times[todos[currentTaskIndex].info.length - 1] = dueTime;
+                    updateTodoList();
+                }
+            }
+        }
+
+        function updateTodoList() {
+            todoList.innerHTML = '';
+            todos.forEach((todo, index) => {
+                const todoItem = document.createElement('li');
+                todoItem.className = 'todo';
+
+                const taskDiv = document.createElement('div');
+                taskDiv.className = 'task-header';
+                taskDiv.innerHTML = `<strong>${todo.text}</strong>`;
+
+                // Bin icon for deleting the task
+                const taskDeleteButton = document.createElement('button');
+                taskDeleteButton.innerHTML = '<i class="fas fa-trash"></i>';
+                taskDeleteButton.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    todos.splice(index, 1);
+                    updateTodoList();
+                });
+                taskDiv.appendChild(taskDeleteButton);
+                todoItem.appendChild(taskDiv);
+
+                // Double-click event to show additional info input
+                taskDiv.addEventListener('dblclick', () => {
+                    currentTaskIndex = index;
+                    additionalInfoGroup.style.display = 'flex';
+                });
+
+                // Display additional info
+                todo.info.forEach((info, i) => {
+                    const infoDiv = document.createElement('div');
+                    infoDiv.className = 'todo-info';
+                    const date = todo.dates[i] ? ` | Due: ${todo.dates[i]}` : '';
+                    const time = todo.times[i] ? ` | Time: ${todo.times[i]}` : '';
+                    infoDiv.innerHTML = `${info}${date}${time}`;
+
+                    // Bin icon for deleting info
+                    const infoDeleteButton = document.createElement('button');
+                    infoDeleteButton.innerHTML = '<i class="fas fa-trash"></i>';
+                    infoDeleteButton.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        todos[index].info.splice(i, 1);
+                        todos[index].dates.splice(i, 1);
+                        todos[index].times.splice(i, 1);
+                        updateTodoList();
+                    });
+                    infoDiv.appendChild(infoDeleteButton);
+                    todoItem.appendChild(infoDiv);
+                });
+
+                todoList.appendChild(todoItem);
+            });
+        }
+
+        function checkOverdueTasks() {
+            const now = new Date();
+            todos.forEach(todo => {
+                todo.dates.forEach((date, index) => {
+                    if (date) {
+                        const dueDate = new Date(date);
+                        if (dueDate < now) {
+                            showNotification(`Task "${todo.text}" is overdue!`);
+                        }
+                    }
+                });
+            });
+        }
+
+        function showNotification(message) {
+            notificationBar.textContent = message;
+            notificationBar.style.display = 'block';
+            setTimeout(() => {
+                notificationBar.style.opacity = '0';
+                setTimeout(() => {
+                    notificationBar.style.display = 'none';
+                    notificationBar.style.opacity = '1';
+                }, 500);
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
+
+
